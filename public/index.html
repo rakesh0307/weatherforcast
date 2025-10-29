@@ -1,79 +1,311 @@
+<!--
+Weather Forecast Web UI (single-file)
+Features:
+- Search by city
+- Use browser geolocation ("Use my location")
+- Shows current weather + 5-day forecast (daily summary)
+- Responsive, accessible, and polished UI
+
+HOW TO USE:
+1. Get a free API key from OpenWeatherMap: https://openweathermap.org/api
+2. Replace the string "REPLACE_WITH_YOUR_API_KEY" below with your API key.
+3. Open this file in a browser (double-click the .html file).
+
+Notes:
+- Forecast is pulled from the 3-hourly forecast endpoint and collapsed to daily summaries.
+- Error handling included for network/city-not-found cases.
+-->
+
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Weather Forecast — Clean UI</title>
-<style>
-:root{
---bg:#0f1724;
---card:#0b1220;
---muted:#9aa7b2;
---accent:#60a5fa;
---glass: rgba(255,255,255,0.03);
---success: #10b981;
-color-scheme: dark;
-font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
-}
-*{box-sizing:border-box}
-html,body{height:100%;margin:0;background:linear-gradient(180deg,#071126 0%, #081527 100%);color:#e6eef6}
-.container{max-width:980px;margin:32px auto;padding:20px}
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Weather Forecast — Clean UI</title>
+  <style>
+    :root{
+      --bg:#0f1724;
+      --card:#0b1220;
+      --muted:#9aa7b2;
+      --accent:#60a5fa;
+      --glass: rgba(255,255,255,0.03);
+      --success: #10b981;
+      color-scheme: dark;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%;margin:0;background:linear-gradient(180deg,#071126 0%, #081527 100%);color:#e6eef6}
+    .container{max-width:980px;margin:32px auto;padding:20px}
 
+    header{display:flex;align-items:center;justify-content:space-between;gap:12px}
+    h1{font-size:1.4rem;margin:0}
+    .sub{color:var(--muted);font-size:0.9rem}
 
-header{display:flex;align-items:center;justify-content:space-between;gap:12px}
-h1{font-size:1.4rem;margin:0}
-.sub{color:var(--muted);font-size:0.9rem}
+    .search-row{display:flex;gap:10px;margin-top:18px}
+    .search-box{flex:1;display:flex;gap:8px;align-items:center;background:var(--card);padding:10px;border-radius:12px;box-shadow:0 6px 18px rgba(4,8,15,0.6)}
+    input[type="search"]{flex:1;background:transparent;border:none;color:inherit;font-size:1rem;outline:none}
+    button{background:linear-gradient(90deg,var(--accent),#3b82f6);border:none;padding:10px 14px;border-radius:10px;color:white;font-weight:600;cursor:pointer}
+    .btn-ghost{background:transparent;border:1px solid rgba(255,255,255,0.06);padding:8px 10px;border-radius:10px;color:var(--muted);cursor:pointer}
 
+    .layout{display:grid;grid-template-columns:1fr 360px;gap:18px;margin-top:20px}
+    @media (max-width:900px){.layout{grid-template-columns:1fr;}.container{padding:12px}}
 
-.search-row{display:flex;gap:10px;margin-top:18px}
-.search-box{flex:1;display:flex;gap:8px;align-items:center;background:var(--card);padding:10px;border-radius:12px;box-shadow:0 6px 18px rgba(4,8,15,0.6)}
-input[type="search"]{flex:1;background:transparent;border:none;color:inherit;font-size:1rem;outline:none}
-button{background:linear-gradient(90deg,var(--accent),#3b82f6);border:none;padding:10px 14px;border-radius:10px;color:white;font-weight:600;cursor:pointer}
-.btn-ghost{background:transparent;border:1px solid rgba(255,255,255,0.06);padding:8px 10px;border-radius:10px;color:var(--muted);cursor:pointer}
+    .card{background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));padding:18px;border-radius:14px;box-shadow:0 8px 30px rgba(2,6,12,0.6)}
 
+    .current{display:flex;gap:18px;align-items:center}
+    .temp{font-size:3.6rem;font-weight:700}
+    .details{color:var(--muted)}
 
-.layout{display:grid;grid-template-columns:1fr 360px;gap:18px;margin-top:20px}
-@media (max-width:900px){.layout{grid-template-columns:1fr;}.container{padding:12px}}
+    .meta{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+    .meta span{background:var(--glass);padding:8px;border-radius:8px;font-size:0.9rem;color:var(--muted)}
 
+    .forecast-grid{display:flex;gap:10px;margin-top:16px;overflow-x:auto;padding-bottom:6px}
+    .day{min-width:110px;padding:10px;border-radius:10px;background:linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0.00));text-align:center}
+    .day small{display:block;color:var(--muted);margin-top:6px}
 
-.card{background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));padding:18px;border-radius:14px;box-shadow:0 8px 30px rgba(2,6,12,0.6)}
+    .side{position:sticky;top:28px}
+    .card h3{margin:0 0 6px 0}
 
+    .error{background:#3b0d0d;color:#ffb4b4;padding:10px;border-radius:8px;margin-top:8px}
 
-.current{display:flex;gap:18px;align-items:center}
-.temp{font-size:3.6rem;font-weight:700}
-.details{color:var(--muted)}
+    footer{margin-top:22px;color:var(--muted);font-size:0.9rem}
 
+    /* loader */
+    .lds-ring{display:inline-block;position:relative;width:36px;height:36px}
+    .lds-ring div{box-sizing:border-box;display:block;position:absolute;width:30px;height:30px;margin:4px;border:3px solid #3b82f6;border-radius:50%;animation:lds-ring 1.2s linear infinite;border-color:#3b82f6 transparent transparent transparent}
+    @keyframes lds-ring{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}
 
-.meta{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
-.meta span{background:var(--glass);padding:8px;border-radius:8px;font-size:0.9rem;color:var(--muted)}
-
-
-.forecast-grid{display:flex;gap:10px;margin-top:16px;overflow-x:auto;padding-bottom:6px}
-.day{min-width:110px;padding:10px;border-radius:10px;background:linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0.00));text-align:center}
-.day small{display:block;color:var(--muted);margin-top:6px}
-
-
-.side{position:sticky;top:28px}
-.card h3{margin:0 0 6px 0}
-
-
-.error{background:#3b0d0d;color:#ffb4b4;padding:10px;border-radius:8px;margin-top:8px}
-
-
-footer{margin-top:22px;color:var(--muted);font-size:0.9rem}
-
-
-/* loader */
-.lds-ring{display:inline-block;position:relative;width:36px;height:36px}
-.lds-ring div{box-sizing:border-box;display:block;position:absolute;width:30px;height:30px;margin:4px;border:3px solid #3b82f6;border-radius:50%;animation:lds-ring 1.2s linear infinite;border-color:#3b82f6 transparent transparent transparent}
-@keyframes lds-ring{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}
-
-
-/* small touches */
-.muted{color:var(--muted)}
-.center{display:flex;align-items:center;justify-content:center}
-</style>
+    /* small touches */
+    .muted{color:var(--muted)}
+    .center{display:flex;align-items:center;justify-content:center}
+  </style>
 </head>
 <body>
-<div class="container">
+  <div class="container">
+    <header>
+      <div>
+        <h1>Weather Forecast</h1>
+        <div class="sub">Current weather + 5-day forecast</div>
+      </div>
+      <div class="muted">Tip: Allow location access for quick results</div>
+    </header>
+
+    <div class="search-row">
+      <div class="search-box card" role="search" aria-label="Search for city weather">
+        <input id="cityInput" type="search" placeholder="Enter city name (e.g. Mumbai, London)" aria-label="City name">
+        <button id="searchBtn" title="Search">Search</button>
+        <button id="locBtn" class="btn-ghost" title="Use my location">Use my location</button>
+      </div>
+    </div>
+
+    <div id="error" style="display:none" class="error" role="alert"></div>
+
+    <div class="layout">
+      <main>
+        <section id="currentCard" class="card" aria-live="polite">
+          <div class="center" style="justify-content:space-between">
+            <div>
+              <div class="muted" id="place">—</div>
+              <div class="current" style="margin-top:8px">
+                <div>
+                  <div class="temp" id="temp">--°C</div>
+                  <div class="details" id="description">—</div>
+                </div>
+                <div style="text-align:center">
+                  <img id="icon" alt="weather icon" width="120" height="120" src="" style="display:none">
+                </div>
+              </div>
+              <div class="meta" id="meta"></div>
+            </div>
+            <div style="width:160px;text-align:center">
+              <div id="loader" style="display:none" class="center"><div class="lds-ring"><div></div><div></div><div></div><div></div></div></div>
+            </div>
+          </div>
+
+          <div class="muted" style="margin-top:12px">5-day forecast</div>
+          <div id="forecast" class="forecast-grid" aria-live="polite"></div>
+        </section>
+      </main>
+
+      <aside class="side">
+        <div class="card">
+          <h3>Quick Facts</h3>
+          <p class="muted">Shows sunrise/sunset, humidity, wind, pressure and a short forecast summary.</p>
+          <hr style="border:none;border-top:1px solid rgba(255,255,255,0.03);margin:10px 0">
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <div><strong id="sun">—</strong><div class="muted">Sunrise / Sunset</div></div>
+            <div><strong id="humidity">—</strong><div class="muted">Humidity</div></div>
+            <div><strong id="wind">—</strong><div class="muted">Wind</div></div>
+            <div><strong id="pressure">—</strong><div class="muted">Pressure</div></div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top:12px">
+          <h3>About</h3>
+          <p class="muted">This demo uses the OpenWeatherMap API. Replace the API key in the script section to run.</p>
+        </div>
+      </aside>
+    </div>
+
+    <footer>Made with ☁️ • OpenWeatherMap</footer>
+  </div>
+
+  <script>
+    // Replace with your OpenWeatherMap API key
+    const API_KEY = 'REPLACE_WITH_YOUR_API_KEY';
+
+    const $ = id => document.getElementById(id);
+    const searchBtn = $('searchBtn');
+    const locBtn = $('locBtn');
+    const cityInput = $('cityInput');
+    const errorBox = $('error');
+    const loader = $('loader');
+
+    function showError(msg){
+      errorBox.textContent = msg; errorBox.style.display = 'block';
+    }
+    function clearError(){ errorBox.style.display='none'; errorBox.textContent=''; }
+
+    function setLoading(on){ loader.style.display = on ? 'flex' : 'none'; }
+
+    async function fetchJson(url){
+      const res = await fetch(url);
+      if(!res.ok) throw new Error((await res.json()).message || 'Network error');
+      return res.json();
+    }
+
+    // Fetch by city name
+    async function getWeatherByCity(city){
+      clearError(); setLoading(true);
+      try{
+        const cw = await fetchJson(`https://api.openweathermap.org/data/2.5/weather?q=${encodeURIComponent(city)}&appid=${API_KEY}&units=metric`);
+        const fw = await fetchJson(`https://api.openweathermap.org/data/2.5/forecast?q=${encodeURIComponent(city)}&appid=${API_KEY}&units=metric`);
+        renderWeather(cw, fw);
+      }catch(err){
+        showError(err.message || 'Could not fetch weather');
+      }finally{ setLoading(false); }
+    }
+
+    // Fetch by coordinates
+    async function getWeatherByCoords(lat, lon){
+      clearError(); setLoading(true);
+      try{
+        const cw = await fetchJson(`https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${API_KEY}&units=metric`);
+        const fw = await fetchJson(`https://api.openweathermap.org/data/2.5/forecast?lat=${lat}&lon=${lon}&appid=${API_KEY}&units=metric`);
+        renderWeather(cw, fw);
+      }catch(err){ showError(err.message || 'Could not fetch weather'); }
+      finally{ setLoading(false); }
+    }
+
+    function renderWeather(current, forecast){
+      // Current
+      $('place').textContent = `${current.name}, ${current.sys.country}`;
+      $('temp').textContent = `${Math.round(current.main.temp)}°C`;
+      $('description').textContent = `${capitalize(current.weather[0].description)}`;
+      const iconEl = $('icon');
+      const iconCode = current.weather[0].icon;
+      iconEl.src = `https://openweathermap.org/img/wn/${iconCode}@2x.png`;
+      iconEl.style.display = 'block';
+
+      $('meta').innerHTML = `
+        <span>Feels: ${Math.round(current.main.feels_like)}°C</span>
+        <span>Min: ${Math.round(current.main.temp_min)}°C</span>
+        <span>Max: ${Math.round(current.main.temp_max)}°C</span>
+      `;
+
+      // Side quick facts
+      $('humidity').textContent = `${current.main.humidity}%`;
+      $('wind').textContent = `${current.wind.speed} m/s`;
+      $('pressure').textContent = `${current.main.pressure} hPa`;
+      $('sun').textContent = `${formatTime(current.sys.sunrise, current.timezone)} / ${formatTime(current.sys.sunset, current.timezone)}`;
+
+      // Forecast — collapse 3-hourly to daily
+      const daily = collapseForecastToDaily(forecast.list, current.timezone);
+      renderForecast(daily);
+    }
+
+    function renderForecast(daily){
+      const container = $('forecast'); container.innerHTML = '';
+      daily.slice(0,5).forEach(d => {
+        const div = document.createElement('div'); div.className = 'day';
+        div.innerHTML = `
+          <div style="font-weight:700">${d.day}</div>
+          <img src="https://openweathermap.org/img/wn/${d.icon}@2x.png" alt="${d.desc}" width="64" height="64">
+          <div style="margin-top:6px">${Math.round(d.temp)}°C</div>
+          <small>${d.desc}</small>
+        `;
+        container.appendChild(div);
+      });
+    }
+
+    // Choose one representative forecast point per day (prefer 12:00 or midday)
+    function collapseForecastToDaily(list, tzOffset){
+      // list: array of forecast points (3-hourly)
+      const map = new Map();
+      list.forEach(item => {
+        // convert UTC timestamp + timezone to date string in target timezone
+        const localTs = (item.dt + tzOffset) * 1000;
+        const d = new Date(localTs);
+        const dateKey = d.toISOString().slice(0,10);
+        // pick one per day (prefer 12:00 if available)
+        if(!map.has(dateKey)) map.set(dateKey, []);
+        map.get(dateKey).push(item);
+      });
+
+      const daily = [];
+      for(const [date, items] of map.entries()){
+        // prefer item where local time is 12:00
+        let pick = items.find(it => {
+          const t = new Date((it.dt + tzOffset) * 1000);
+          return t.getUTCHours() === 12; // after shifting by tzOffset, compare UTC hours
+        }) || items[Math.floor(items.length/2)];
+
+        daily.push({
+          date,
+          day: new Date(date).toLocaleDateString(undefined, {weekday:'short', month:'short', day:'numeric'}),
+          temp: pick.main.temp,
+          icon: pick.weather[0].icon,
+          desc: capitalize(pick.weather[0].description)
+        });
+      }
+      return daily;
+    }
+
+    function capitalize(s){ return s.charAt(0).toUpperCase() + s.slice(1); }
+
+    function formatTime(unixUtcSec, tzOffset){
+      // tzOffset is seconds offset from UTC
+      const local = new Date((unixUtcSec + tzOffset) * 1000);
+      return local.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+    }
+
+    // Events
+    searchBtn.addEventListener('click', ()=>{
+      const city = cityInput.value.trim();
+      if(!city){ showError('Please enter a city name'); return; }
+      getWeatherByCity(city);
+    });
+
+    cityInput.addEventListener('keydown', (e)=>{ if(e.key === 'Enter') searchBtn.click(); });
+
+    locBtn.addEventListener('click', ()=>{
+      clearError();
+      if(!navigator.geolocation){ showError('Geolocation not supported by your browser'); return; }
+      setLoading(true);
+      navigator.geolocation.getCurrentPosition(pos => {
+        getWeatherByCoords(pos.coords.latitude, pos.coords.longitude);
+      }, err => {
+        showError('Unable to retrieve your location'); setLoading(false);
+      }, {timeout:10000});
+    });
+
+    // On load: optionally show a default city
+    (function init(){
+      // Try to load a default city for a better first impression
+      const defaultCity = 'New Delhi';
+      cityInput.value = defaultCity;
+      getWeatherByCity(defaultCity);
+    })();
+  </script>
+</body>
 </html>
